@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>大霧中的心理博弈：草船借箭決策分析｜LLM Wiki 簡報</title>
+  <!-- Google Fonts: Zen Maru Gothic & Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+  <!-- KaTeX for LaTeX Rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {
+      delimiters: [
+        {left: '$$', right: '$$', display: true},
+        {left: '$', right: '$', display: false}
+      ]
+    });"></script>
+  <style>
+    :root {
+      /* 晴空蘇打與檸檬汽水 (Soda & Lemon) 低飽和日系粉彩配色 */
+      --bg-base: #F5F9FA;
+      --bg-card: #FFFFFF;
+      --soda-blue: #8FB8CA;
+      --soda-blue-light: #E4F0F5;
+      --lemon-yellow: #EFE0A8;
+      --lemon-yellow-light: #FBF7E6;
+      --peach-pink: #ECA89A;
+      --peach-pink-light: #FDF0ED;
+      --mint-green: #B6D7C9;
+      --text-main: #3B4954;
+      --text-muted: #6C7D8A;
+      --border-soft: #DCE7EC;
+      --shadow-offset: 6px 6px 0px #DCE7EC;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background-color: var(--bg-base);
+      background-image: radial-gradient(#D5E4EB 1.2px, transparent 1.2px);
+      background-size: 24px 24px;
+      color: var(--text-main);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 32px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 2px solid var(--border-soft);
+      z-index: 10;
+    }
+
+    .brand-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text-main);
+      background: var(--soda-blue-light);
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1.5px solid var(--soda-blue);
+    }
+
+    .controls-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-pill {
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1.5px solid var(--soda-blue);
+      background: var(--bg-card);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-pill:hover {
+      background: var(--lemon-yellow);
+      border-color: #D5C27D;
+      transform: translateY(-1px);
+    }
+
+    /* Slide Viewport */
+    .stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 48px;
+      position: relative;
+    }
+
+    .slide {
+      display: none;
+      width: 100%;
+      max-width: 1060px;
+      min-height: 540px;
+      background: var(--bg-card);
+      border: 2.5px solid var(--soda-blue);
+      border-radius: 28px;
+      box-shadow: 10px 10px 0px #D4E5EC;
+      padding: 44px 52px;
+      flex-direction: column;
+      justify-content: space-between;
+      animation: fadePop 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+      position: relative;
+    }
+
+    .slide.active {
+      display: flex;
+    }
+
+    @keyframes fadePop {
+      from { opacity: 0; transform: translateY(10px) scale(0.99); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Decorative corner bubble */
+    .slide::after {
+      content: "✦";
+      position: absolute;
+      top: 22px;
+      right: 28px;
+      font-size: 1.4rem;
+      color: var(--lemon-yellow);
+      text-shadow: 1px 1px 0 var(--soda-blue);
+    }
+
+    .slide-header {
+      margin-bottom: 22px;
+    }
+
+    .kicker {
+      display: inline-block;
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--lemon-yellow);
+      color: var(--text-main);
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 2.3rem;
+      line-height: 1.3;
+      color: var(--text-main);
+    }
+
+    h2 {
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-size: 1.75rem;
+      line-height: 1.35;
+      color: var(--text-main);
+      border-bottom: 3px dashed var(--lemon-yellow);
+      padding-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      margin-top: 14px;
+      line-height: 1.6;
+    }
+
+    /* Cards & Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      margin: 12px 0;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin: 12px 0;
+    }
+
+    .pastel-card {
+      background: var(--soda-blue-light);
+      border: 2px solid var(--soda-blue);
+      border-radius: 20px;
+      padding: 20px 22px;
+      box-shadow: var(--shadow-offset);
+    }
+
+    .pastel-card.lemon {
+      background: var(--lemon-yellow-light);
+      border-color: #DFC97B;
+      box-shadow: 6px 6px 0px #EFE6C2;
+    }
+
+    .pastel-card.peach {
+      background: var(--peach-pink-light);
+      border-color: var(--peach-pink);
+      box-shadow: 6px 6px 0px #F4D5CE;
+    }
+
+    .card-title {
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-weight: 700;
+      font-size: 1.12rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--soda-blue);
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .badge-num.peach {
+      background: var(--peach-pink);
+    }
+
+    p, li {
+      font-size: 1.02rem;
+      line-height: 1.68;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    /* Formula Sticky Box */
+    .formula-box {
+      background: var(--lemon-yellow-light);
+      border: 2px dashed #D8BE6B;
+      border-radius: 18px;
+      padding: 18px 24px;
+      margin: 14px 0;
+      text-align: center;
+      font-size: 1.1rem;
+    }
+
+    /* Wiki Bookmark Footer inside slide */
+    .wiki-bookmark {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1.5px solid var(--border-soft);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.86rem;
+      color: var(--text-muted);
+    }
+
+    .bookmark-pill {
+      background: #EEF6F9;
+      border: 1px solid var(--soda-blue);
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-family: monospace;
+      color: var(--text-main);
+    }
+
+    /* Speaker Notes Drawer */
+    .notes-drawer {
+      display: none;
+      position: fixed;
+      bottom: 68px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 960px;
+      background: #FFFDF7;
+      border: 2px solid #DFC97B;
+      border-radius: 18px;
+      padding: 16px 24px;
+      box-shadow: 0 8px 24px rgba(59, 73, 84, 0.12);
+      z-index: 20;
+    }
+
+    .notes-drawer.open {
+      display: block;
+    }
+
+    .notes-drawer strong {
+      font-family: 'Zen Maru Gothic', sans-serif;
+      color: #8A6D1B;
+    }
+
+    /* Bottom Navigation */
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 32px;
+      background: rgba(255, 255, 255, 0.9);
+      border-top: 2px solid var(--border-soft);
+    }
+
+    .progress-wrap {
+      flex: 1;
+      max-width: 420px;
+      height: 10px;
+      background: var(--soda-blue-light);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 0 24px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--soda-blue), var(--lemon-yellow));
+      width: 12.5%;
+      transition: width 0.3s ease;
+    }
+
+    .page-indicator {
+      font-family: 'Zen Maru Gothic', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header class="top-bar">
+    <div class="brand-tag">🍋 晴空蘇打 × LLM Wiki 研究簡報</div>
+    <div class="controls-top">
+      <button class="btn-pill" onclick="toggleNotes()">📝 講者備忘錄 (N)</button>
+      <span style="font-size:0.85rem; color:var(--text-muted);">使用 ← / → 鍵翻頁</span>
+    </div>
+  </header>
+
+  <!-- Main Stage -->
+  <main class="stage">
+
+    <!-- Slide 1: Cover -->
+    <section class="slide active" data-note="開場說明：本簡報嚴格依據 LLM Wiki 知識庫內已收錄之文獻編譯而成，並透過 LaTeX 建模解析曹操的戰場決策，同時誠實標註尚未收錄的知識缺口。">
+      <div class="slide-header">
+        <span class="kicker">RESEARCH BRIEFING • 2026-11-16</span>
+        <h1>大霧中的心理博弈：<br>諸葛亮為何敢斷定曹操「只射箭、不衝鋒」？</h1>
+        <p class="subtitle">從《草船借箭》案例拆解資訊不對稱、對手心智建模（Theory of Mind）與風險規避之貝氏決策邏輯</p>
+      </div>
+      <div class="grid-3">
+        <div class="pastel-card">
+          <div class="card-title"><span class="badge-num">01</span> 嚴格 Wiki 邊界</div>
+          <p>正文 100% 僅引用知識庫已驗證之頁面，杜絕外部雜訊污染。</p>
+        </div>
+        <div class="pastel-card lemon">
+          <div class="card-title"><span class="badge-num">02</span> LaTeX 決策建模</div>
+          <p>以貝氏期望效用函數形式化分析高不確定性下的防守方策略。</p>
+        </div>
+        <div class="pastel-card peach">
+          <div class="card-title"><span class="badge-num peach">03</span> 誠實知識缺口</div>
+          <p>明確標示「未使用火箭」之史料缺口，並附上可一鍵下載之待擴充文獻。</p>
+        </div>
+      </div>
+      <div class="wiki-bookmark">
+        <span>🔖 知識來源：<span class="bookmark-pill">[[articles/草船借箭]]</span> <span class="bookmark-pill">[[concepts/心理博弈與資訊不對稱]]</span></span>
+        <span>Style: Soda &amp; Lemon Pastel</span>
+      </div>
+    </section>
+
+    <!-- Slide 2: Core Questions -->
+    <section class="slide" data-note="先為聽眾建立三個子問題的知識狀態地圖：前兩個問題在 Wiki 中已有充分依據，第三個問題則屬於目前知識庫的邊界之外。">
+      <div class="slide-header">
+        <span class="kicker">01 • 研究問題拆解</span>
+        <h2>本專題欲解答的三個核心問題與知識狀態</h2>
+      </div>
+      <div class="grid-3">
+        <div class="pastel-card">
+          <div class="card-title"><span class="badge-num">Q1</span> 為何不派兵衝鋒？</div>
+          <p><strong>狀態：已由 Wiki 證實</strong></p>
+          <p style="margin-top:8px;">濃霧剝奪視覺驗證能力，曹操判定「必有埋伏，不可輕動」，極度規避近戰中伏風險。</p>
+        </div>
+        <div class="pastel-card lemon">
+          <div class="card-title"><span class="badge-num">Q2</span> 為何只下令射箭？</div>
+          <p><strong>狀態：已由 Wiki 證實</strong></p>
+          <p style="margin-top:8px;">遠程弓弩齊射屬於低人員傷亡風險的防禦性火力覆蓋，符合其謹慎性格下的最優解。</p>
+        </div>
+        <div class="pastel-card peach">
+          <div class="card-title"><span class="badge-num peach">Q3</span> 為何不用火箭攻擊？</div>
+          <p><strong>狀態：[知識缺口]</strong></p>
+          <p style="margin-top:8px;">目前 Wiki 僅收錄單一截圖原文，尚未包含火攻、濕度與連環船防火史料，正文不予臆測。</p>
+        </div>
+      </div>
+      <div class="wiki-bookmark">
+        <span>🔖 依據頁面：<span class="bookmark-pill">notes/2026-11-16-諸葛亮為何敢斷定...md</span></span>
+        <span>原則：知之為知之，不知標缺口</span>
+      </div>
+    </section>
+
+    <!-- Slide 3: Fog & Information Asymmetry -->
+    <section class="slide" data-note="透過左右對比，突顯諸葛亮如何利用『環境雜訊放大器』製造嚴重的資訊不對稱。">
+      <div class="slide-header">
+        <span class="kicker">02 • 環境雜訊與資訊不對稱</span>
+        <h2>四更重霧：如何將 600 名軍士偽裝成主力大軍？</h2>
+      </div>
+      <div class="grid-2">
+        <div class="pastel-card">
+          <div class="card-title"><span class="badge-num">實</span> 蜀吳船隊的真實配置</div>
+          <ul>
+            <li><strong>出擊時刻</strong>：第三日四更，「霧氣甚濃，面相不見」。</li>
+            <li><strong>兵力規模</strong>：僅 20 隻船，每船軍士 30 人（合計 600 人）。</li>
+            <li><strong>偽裝介質</strong>：船上皆用青布為幔，各束草千餘個分布兩邊。</li>
+            <li><strong>核心目的</strong>：並非交戰，而是最大化受箭面積與承載力。</li>
+          </ul>
+        </div>
+        <div class="pastel-card lemon">
+          <div class="card-title"><span class="badge-num">虛</span> 曹軍水寨的感知訊號</div>
+          <ul>
+            <li><strong>視覺盲區</strong>：重霧迷江，無法辨識船隻吃水深度與實際兵員。</li>
+            <li><strong>陣型壓迫</strong>：二十隻船「頭東尾西，約一字兒擺在水面上」。</li>
+            <li><strong>聽覺欺敵</strong>：軍士「擂鼓吶喊」，模擬大軍壓境的突襲聲勢。</li>
+            <li><strong>認知結果</strong>：將低成本誘餌船隊誤判為「彼軍卒然至，必有埋伏」。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="wiki-bookmark">
+        <span>🔖 知識來源：<span class="bookmark-pill">[[articles/草船借箭]]</span> <span class="bookmark-pill">[[concepts/心理博弈與資訊不對稱]]</span></span>
+        <span>機制：高強度虛假訊號注入</span>
+      </div>
+    </section>
+
+    <!-- Slide 4: Theory of Mind -->
+    <section class="slide" data-note="諸葛亮在船上『只顧飲酒』並非盲目自信，而是他對曹操的心智模型（Theory of Mind）做出了精準預測。">
+      <div class="slide-header">
+        <span class="kicker">03 • 對手心智建模（Theory of Mind）</span>
+        <h2>「吾料曹操於重霧中必不敢出」：性格預判的精準驗證</h2>
+      </div>
+      <div class="grid-2">
+        <div class="pastel-card">
+          <div class="card-title"><span class="badge-num">預測</span> 諸葛亮的先驗判斷</div>
+          <p>當[[entities/魯肅]]驚問：「倘曹兵齊至，奈何？」</p>
+          <p style="margin-top:10px;">[[entities/諸葛亮]]笑曰：<strong>「吾料曹操於重霧中必不敢出。吾等只顧飲酒，霧散便回。」</strong></p>
+          <p style="margin-top:10px; color:var(--text-muted);">孔明看準曹操生性多疑、用兵極重穩健，在情報完全不透明時絕不輕易投入主力。</p>
+        </div>
+        <div class="pastel-card peach">
+          <div class="card-title"><span class="badge-num peach">印證</span> 曹操的實際軍令</div>
+          <p>[[entities/曹操]]聞得鼓聲，隨即下令：</p>
+          <p style="margin-top:10px;"><strong>「重霧迷江，彼軍卒然至，必有埋伏，不可輕動。可傳令沿江趕弩手箭射之。」</strong></p>
+          <p style="margin-top:10px; color:var(--text-muted);">甚至進一步從旱寨增調[[entities/張遼]]、[[entities/徐晃]]兩處弓弩手協同放箭。</p>
+        </div>
+      </div>
+      <div class="wiki-bookmark">
+        <span>🔖 知識來源：<span class="bookmark-pill">[[entities/諸葛亮]]</span> <span class="bookmark-pill">[[entities/曹操]]</span> <span class="bookmark-pill">[[entities/魯肅]]</span></span>
+        <span>關鍵特質：高度風險規避（Risk-Averse）</span>
+      </div>
+    </section>
+
+    <!-- Slide 5: LaTeX Decision Modeling -->
+    <section class="slide" data-note="本頁利用 LaTeX 貝氏期望效用公式，將曹操在重霧中的決策權衡量化，說明為何遠程射箭是嚴格優勢策略。">
+      <div class="slide-header">
+        <span class="kicker">04 • 貝氏決策期望效用模型（LaTeX）</span>
+        <h2>為什麼「遠程射箭」是曹操的唯一理性解？</h2>
+      </div>
+      <p>設曹操在重霧訊號 $S_{	ext{fog}}$ 與鼓聲刺激下，評估江面存在埋伏的後驗機率為 $p = P(	ext{Ambush} \mid S_{	ext{fog}}, 	ext{Drums})$。比較兩大策略之期望效用：</p>
+      <div class="formula-box">
+        $$\mathbb{E}[U(	ext{派兵衝鋒})] = (1 - p) \cdot V_{	ext{win}} - p \cdot C_{	ext{ambush}}$$
+        $$\mathbb{E}[U(	ext{遠程射箭})] = V_{	ext{deter}} - C_{	ext{arrows}}$$
+      </div>
+      <div class="grid-2">
+        <div class="pastel-card">
+          <div class="card-title"><span class="badge-num">1</span> 參數結構失衡</div>
+          <p>重霧使曹操主觀判定 $p 	o 1$，且中伏損失主力之代價 $C_{	ext{ambush}}$ 遠大於消耗箭矢的邊際成本 $C_{	ext{arrows}}$。</p>
+        </div>
+        <div class="pastel-card lemon">
+          <div class="card-title"><span class="badge-num">2</span> 嚴格優勢策略</div>
+          <p>當 $C_{	ext{ambush}} \gg C_{	ext{arrows}}$，必得 $\mathbb{E}[U(	ext{遠程射箭})] > \mathbb{E}[U(	ext{派兵衝鋒})]$，誘導曹操主動傾瀉箭雨。</p>
+        </div>
+      </div>
+      <div class="wiki-bookmark">
+        <span>🔖 理論連結：<span class="bookmark-pill">[[concepts/心理博弈與資訊不對稱]]</span></span>
+        <span>Engine: KaTeX Math Rendering</span>
+      </div>
+    </section>
+
+    <!-- Slide 6: Execution & Harvesting -->
+    <section class="slide" data-note="說明諸葛亮如何透過掉轉船頭完成雙側均勻受箭，並連結到 LLM 研究中的合成資料收割（Synthetic Data Harvesting）。">
+      <div class="slide-header">
+        <span class="kicker">05 • 執行工藝與跨領域類比</span>
+        <h2>掉轉船頭的幾何巧思與「合成資料收割」類比</h2>
+      </div>
+      <div class="grid-3">
+        <div class="pastel-card">
+          <div class="card-title"><span class="badge-num">01</span> 頭東尾西受箭</div>
+          <p>一字排開吸引沿江與旱寨（張遼、徐晃部）弓弩齊發，箭如雨下。</p>
+        </div>
+        <div class="pastel-card lemon">
+          <div class="card-title"><span class="badge-num">02</span> 頭西尾東平衡</div>
+          <p>命船掉轉逼近水寨受箭，使船身兩側草束均勻配重，防止傾覆並倍增效率。</p>
+        </div>
+        <div class="pastel-card">
+          <div class="card-title"><span class="badge-num">03</span> 十萬餘支戰果</div>
+          <p>天明霧散急回，每船約五六千枝，二十船共收割 <strong>100,000+ 支箭</strong>。</p>
+        </div>
+      </div>
+      <div class="pastel-card peach" style="margin-top:10px;">
+        <div class="card-title">💡 LLM 研究類比：低成本誘發高價值輸出</div>
+        <p>如同小模型透過設計精巧提示詞（草船與鼓聲），低成本誘導大型教師模型（曹軍弓弩手）傾瀉高品質推論結果（十萬支箭），實現高效的 <strong>Synthetic Data Harvesting</strong>。</p>
+      </div>
+      <div class="wiki-bookmark">
+        <span>🔖 知識來源：<span class="bookmark-pill">[[articles/草船借箭]]</span> <span class="bookmark-pill">[[concepts/心理博弈與資訊不對稱]]</span></span>
+        <span>保密防線：全程封鎖[[entities/周瑜]]知情管道</span>
+      </div>
+    </section>
+
+    <!-- Slide 7: Knowledge Gap -->
+    <section class="slide" data-note="誠實揭露為何本簡報不對『不使用火箭』做臆測性回答：因為目前的 raw 與 wiki 層尚未收錄火攻與赤壁水寨相關史料。">
+      <div class="slide-header">
+        <span class="kicker">06 • 知識邊界與缺口誠實揭露</span>
+        <h2>關於「甚至不使用火箭攻擊」的知識缺口說明</h2>
+      </div>
+      <div class="pastel-card peach" style="padding: 28px 32px;">
+        <div class="card-title" style="font-size:1.25rem;"><span class="badge-num peach">!</span> [知識缺口] 目前 Wiki 尚未收錄火箭與火攻相關資料</div>
+        <ul style="margin-top: 12px;">
+          <li><strong>現有資料範圍</strong>：目前 `raw/` 僅存有《草船借箭》單一截圖原文，文中未提及任何「火箭」、「火攻」或曹軍水寨船艦結構之記載。</li>
+          <li><strong>嚴格知識邊界紀律</strong>：為確保研究筆記與簡報 100% 忠於已驗證的 Wiki 知識庫，本系統拒絕將未經 Ingest 審核的外部搜尋推論混入正文。</li>
+          <li><strong>待驗證假說（需透過外部文獻補齊）</strong>：長江冬季重霧高濕度對火箭點燃率之限制、以及曹軍水寨自身防範火勢逆吹之戰術禁忌。</li>
+        </ul>
+      </div>
+      <div class="wiki-bookmark">
+        <span>🔖 規範依據：<span class="bookmark-pill">AGENTS.md § 三、核心作業流程</span></span>
+        <span>狀態：等待下一輪 Ingest 擴充</span>
+      </div>
+    </section>
+
+    <!-- Slide 8: Suggested References -->
+    <section class="slide" data-note="最後一頁提供可直接點擊開啟或下載的建議參考文獻，只要將其中任何一篇貼回對話框，即可啟動下一輪 Wiki Ingest 更新。">
+      <div class="slide-header">
+        <span class="kicker">07 • 下一步擴充行動（待 Ingest）</span>
+        <h2>建議參考文獻清單（可點擊開啟／下載並匯入 Wiki）</h2>
+      </div>
+      <div class="grid-3">
+        <div class="pastel-card">
+          <div class="card-title"><span class="badge-num">01</span> 《三國演義》第四十六回</div>
+          <p><strong>來源</strong>：維基文庫完整全文</p>
+          <p style="margin-top:6px; font-size:0.94rem;">補齊周瑜限期十日造箭、軍令狀與船上完整對話上下文。</p>
+        </div>
+        <div class="pastel-card lemon">
+          <div class="card-title"><span class="badge-num">02</span> 《三國志·吳主傳》裴注</div>
+          <p><strong>來源</strong>：中國哲學書電子化計劃</p>
+          <p style="margin-top:6px; font-size:0.94rem;">補齊孫權觀曹軍受箭原型史料，建立史實與演義對比頁。</p>
+        </div>
+        <div class="pastel-card peach">
+          <div class="card-title"><span class="badge-num peach">03</span> 赤壁水戰與火攻考據</div>
+          <p><strong>來源</strong>：學術期刊與軍事史研究</p>
+          <p style="margin-top:6px; font-size:0.94rem;">補齊冬季江霧濕度與水寨防火禁忌，徹底解答火箭之謎。</p>
+        </div>
+      </div>
+      <div class="pastel-card" style="margin-top:12px; text-align:center;">
+        <p>✨ <strong>操作提示</strong>：詳細可直接點擊之 URL 連結已完整收錄於 <span class="bookmark-pill">notes/2026-11-16-諸葛亮為何敢斷定...md</span> 末段！</p>
+      </div>
+      <div class="wiki-bookmark">
+        <span>🔖 完整筆記：<span class="bookmark-pill">notes/2026-11-16-諸葛亮為何敢斷定...md</span></span>
+        <span>LLM Wiki 持續累積中</span>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Speaker Notes Drawer -->
+  <aside class="notes-drawer" id="notesDrawer">
+    <strong>📝 講者備忘錄（Speaker Notes）：</strong>
+    <p id="notesText" style="margin-top:6px; font-size:0.95rem;"></p>
+  </aside>
+
+  <!-- Bottom Navigation Bar -->
+  <footer class="bottom-bar">
+    <button class="btn-pill" onclick="prevSlide()">← 上一頁</button>
+    <div class="progress-wrap">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <span class="page-indicator" id="pageIndicator">1 / 8</span>
+    <button class="btn-pill" onclick="nextSlide()" style="margin-left:16px;">下一頁 →</button>
+  </footer>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const progressFill = document.getElementById('progressFill');
+    const pageIndicator = document.getElementById('pageIndicator');
+    const notesDrawer = document.getElementById('notesDrawer');
+    const notesText = document.getElementById('notesText');
+    let current = 0;
+
+    function updateSlide(index) {
+      slides.forEach((s, i) => {
+        s.classList.toggle('active', i === index);
+      });
+      const pct = ((index + 1) / slides.length) * 100;
+      progressFill.style.width = pct + '%';
+      pageIndicator.textContent = `${index + 1} / ${slides.length}`;
+      notesText.textContent = slides[index].getAttribute('data-note') || '（本頁無額外備忘錄）';
+    }
+
+    function nextSlide() {
+      if (current < slides.length - 1) {
+        current++;
+        updateSlide(current);
+      }
+    }
+
+    function prevSlide() {
+      if (current > 0) {
+        current--;
+        updateSlide(current);
+      }
+    }
+
+    function toggleNotes() {
+      notesDrawer.classList.toggle('open');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'n' || e.key === 'N') {
+        toggleNotes();
+      }
+    });
+
+    updateSlide(0);
+  </script>
+</body>
+</html>
